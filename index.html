@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Control Financiero</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-4">
+    <div class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden md:max-w-2xl p-6">
+        <h1 class="text-2xl font-bold text-center text-indigo-600 mb-6">💰 Mi Gestor de Gastos</h1>
+        
+        <div class="grid grid-cols-2 gap-4 mb-6 text-center">
+            <div class="bg-green-100 p-3 rounded-lg">
+                <p class="text-sm text-green-600 font-semibold">Ahorro Actual</p>
+                <p id="totalAhorro" class="text-xl font-bold text-green-800">$0</p>
+            </div>
+            <div class="bg-blue-100 p-3 rounded-lg">
+                <p class="text-sm text-blue-600 font-semibold">Meta Objetivo</p>
+                <p id="displayMeta" class="text-xl font-bold text-blue-800">$0</p>
+            </div>
+        </div>
+
+        <div class="space-y-4 mb-8">
+            <input type="text" id="concepto" placeholder="Concepto (ej. Cena, Sueldo, Ahorro)" class="w-full p-2 border rounded">
+            <input type="number" id="monto" placeholder="Monto $" class="w-full p-2 border rounded">
+            <select id="tipo" class="w-full p-2 border rounded">
+                <option value="gasto">Gasto (-)</option>
+                <option value="ingreso">Ingreso/Ahorro (+)</option>
+            </select>
+            <button onclick="agregarMovimiento()" class="w-full bg-indigo-600 text-white py-2 rounded font-bold hover:bg-indigo-700">Registrar</button>
+        </div>
+
+        <canvas id="myChart" class="mb-8"></canvas>
+
+        <div class="border-t pt-4">
+            <h3 class="font-bold mb-2">Configurar Meta de Ahorro</h3>
+            <div class="flex gap-2">
+                <input type="number" id="inputMeta" placeholder="Ej: 5000" class="flex-1 p-2 border rounded">
+                <button onclick="setMeta()" class="bg-gray-800 text-white px-4 py-2 rounded">Fijar</button>
+            </div>
+        </div>
+
+        <div class="mt-8">
+            <h3 class="font-bold mb-4">Historial Reciente</h3>
+            <ul id="listaMovimientos" class="divide-y divide-gray-200"></ul>
+        </div>
+    </div>
+
+    <script>
+        let movimientos = JSON.parse(localStorage.getItem('movimientos')) || [];
+        let meta = localStorage.getItem('metaAhorro') || 0;
+
+        function actualizarUI() {
+            const lista = document.getElementById('listaMovimientos');
+            const totalAhorroEl = document.getElementById('totalAhorro');
+            const displayMetaEl = document.getElementById('displayMeta');
+            lista.innerHTML = '';
+            
+            let total = 0;
+            movimientos.forEach((m, index) => {
+                total += (m.tipo === 'ingreso' ? parseFloat(m.monto) : -parseFloat(m.monto));
+                lista.innerHTML += `
+                    <li class="py-2 flex justify-between">
+                        <span>${m.concepto}</span>
+                        <span class="${m.tipo === 'ingreso' ? 'text-green-600' : 'text-red-600'} font-bold">
+                            ${m.tipo === 'ingreso' ? '+' : '-'}$${m.monto}
+                        </span>
+                    </li>`;
+            });
+
+            totalAhorroEl.innerText = `$${total.toFixed(2)}`;
+            displayMetaEl.innerText = `$${meta}`;
+            localStorage.setItem('movimientos', JSON.stringify(movimientos));
+            actualizarGrafico();
+        }
+
+        function agregarMovimiento() {
+            const concepto = document.getElementById('concepto').value;
+            const monto = document.getElementById('monto').value;
+            const tipo = document.getElementById('tipo').value;
+
+            if(concepto && monto) {
+                movimientos.push({ concepto, monto, tipo, fecha: new Date() });
+                actualizarUI();
+                document.getElementById('concepto').value = '';
+                document.getElementById('monto').value = '';
+            }
+        }
+
+        function setMeta() {
+            meta = document.getElementById('inputMeta').value;
+            localStorage.setItem('metaAhorro', meta);
+            actualizarUI();
+        }
+
+        function actualizarGrafico() {
+            const ctx = document.getElementById('myChart').getContext('2d');
+            const ingresos = movimientos.filter(m => m.tipo === 'ingreso').reduce((acc, m) => acc + parseFloat(m.monto), 0);
+            const gastos = movimientos.filter(m => m.tipo === 'gasto').reduce((acc, m) => acc + parseFloat(m.monto), 0);
+
+            if (window.chartObj) window.chartObj.destroy();
+            window.chartObj = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Ingresos/Ahorro', 'Gastos'],
+                    datasets: [{
+                        data: [ingresos, gastos],
+                        backgroundColor: ['#10B981', '#EF4444']
+                    }]
+                }
+            });
+        }
+
+        actualizarUI();
+    </script>
+</body>
+</html>
